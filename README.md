@@ -1,7 +1,7 @@
-## Портфолио
+##  Портфолио
 Здесь собраны некоторые реализованные(учебные) проекты
 
-#	Проекты 
+# Проекты 
 1.	Выбор наилучшего тарифа было
    в работе использовала:  python, pandas, numpy, scipy, sklearn, matplotlib
  сылка на проект: https://github.com/Lyubov1993/Progect/tree/main/Internet%20magazine
