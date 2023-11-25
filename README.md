@@ -3,7 +3,7 @@
 
 # Проекты   
 1.Поиск наиболее выгодного тарифа  
- Выбор наилучшего тарифа было  
+ Выбор наилучшего тарифа  
 в работе использовала:  python, pandas, numpy, scipy, sklearn, matplotlib  
  сылка на проект: https://github.com/Lyubov1993/Progect/tree/main/Internet%20magazine  
 2.	Поиск модели ,которая будет убирать плохие комметрарии  
