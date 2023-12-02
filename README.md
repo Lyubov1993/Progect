@@ -1,9 +1,8 @@
 ##  Портфолио  
 Данные проекты были выполнены в ходе обучения в Яндекс.Практикуме, профессии  "Специалист по Data Science".
 
-# Проекты   
-1.Поиск наиболее выгодного тарифа  
- Выбор наилучшего тарифа  
+# Проекты 
+name: Best_tarif Delete_bad_comment  
 в работе использовала:  python, pandas, numpy, scipy, sklearn, matplotlib  
  сылка на проект: [[https://github.com/Lyubov1993/Progect/tree/main/Internet%20magazine  ](https://github.com/Lyubov1993/Best-tarif/tree/main) ](https://github.com/Lyubov1993/yandex_practicum/tree/main/Best_tarif%20) 
 2.	Поиск модели ,которая будет убирать плохие комметрарии  
