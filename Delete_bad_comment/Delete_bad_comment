@@ -1,1 +1,230 @@
+# Интернет-магазин «Викишопs» запускает новый сервис. Теперь пользователи могут редактировать и дополнять описания товаров, как в вики-сообществах. То есть клиенты предлагают свои правки и комментируют изменения других. Магазину нужен инструмент, который будет искать токсичные комментарии и отправлять их на модерацию. 
 
+# Обучите модель классифицировать комментарии на позитивные и негативные. В вашем распоряжении набор данных с разметкой о токсичности правок.
+
+# Постройте модель со значением метрики качества *F1* не меньше 0.75. 
+
+# **Инструкция по выполнению проекта**
+
+# 1. Загрузите и подготовьте данные.
+# 2. Обучите разные модели. 
+# 3. Сделайте выводы.
+
+## Подготовка
+### Загрузим данные.
+import pandas as pd
+from sklearn.model_selection import cross_val_score, train_test_split 
+from sklearn.ensemble import RandomForestClassifier 
+from sklearn.linear_model import LogisticRegression
+import catboost as cb
+from sklearn.metrics import make_scorer, mean_squared_error
+import time
+from catboost.utils import eval_metric
+from time import time
+from sklearn.dummy import DummyClassifier
+from catboost import CatBoostClassifier
+import numpy as np
+from sklearn.metrics import f1_score
+
+
+from tqdm import notebook,tqdm, trange
+from pymystem3 import Mystem
+import re 
+from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
+from nltk.corpus import stopwords 
+import nltk
+nltk.download('stopwords') 
+stop_words = set(stopwords.words('english')) 
+from nltk.stem import WordNetLemmatizer
+nltk.download('wordnet','stopwords','punkt','averaged_perceptron_tagger')
+from nltk.corpus import wordnet
+from sklearn.model_selection import GridSearchCV
+data=pd.read_csv('/datasets/toxic_comments.csv')
+data.head()
+data.info()
+#посмотрим информацию по нечисленным типам данных(узнать есть ли отрицательные числа)
+data.describe(include='all')
+#посмотрим на последние строчки датафрейма
+data.tail()
+data.shape
+# На первом этапе произведена загрузка данных и их подготовка для обучения моделей. Для анализа данных и построения модели предоставлен датасет с размеченными данными, содержащий комментарии пользователей к товарам, доступным для приобретения в интернет-магазине «Викишоп». Датасет состоит из 2 столбцов с данными и 159571 строк. Исходный датасет состоит из следующих столбцов:
+
+# text — текст комментария;
+
+# toxic — является ли комментарий токсичным (1) или нет (0)
+
+# Пропуски в данных отсутствуют.
+# Прежде, чем мы приступим к обучению упростим датасет.
+### Упростим датасет.
+#оставим только буквы в нижнем и верхнем регистре + цифры
+data['text'] = data['text'].str.lower()
+data_new = []
+pattern = r'[^a-zA-Z0-9]' #r'[^a-zA-z]' [^a-zA-Z0-9]
+for sentence in data.text:
+  cleared_text = re.sub(pattern, " ", sentence)
+  data_new.append(" ". join(cleared_text.split()))
+  #добавим новый столбец.
+data["clear_text"]=data_new
+data.head()
+#для дальнейшего использования 159571 очень большой датасет, поэтому сделаем sample.
+sample_size = 80000
+corpus = data.sample(n=sample_size,random_state=12345).reset_index(drop=True)
+print('соотношение классов в датасете corpus\n', corpus.toxic.value_counts()/corpus.shape[0]*100)
+# Соотношение классов приблизтельно как в исходном датасете.
+corpus.head()
+# инициализация Wordnet Lemmatizer
+L = WordNetLemmatizer()
+#функция выполняет токенизациию и лемматизацию массива текстов
+def lemmatizered(corpus):
+  corpus_new = []
+  for sentence in corpus:
+    word_list = nltk.word_tokenize(sentence)
+    corpus_new.append(' '.join([L.lemmatize(w) for w in word_list]))
+  return corpus_new
+nltk.download('stopwords')
+stopwords.words('english')[:10]
+#функция возвращает словарь, где возвращается значение часть речи (pos_tag)
+def get_wordnet_pos(word):
+    tag = nltk.pos_tag([word])[0][1][0].upper()
+    tag_dict = {"J": wordnet.ADJ,
+                "N": wordnet.NOUN,
+                "V": wordnet.VERB,
+                "R": wordnet.ADV}
+    return tag_dict.get(tag, wordnet.NOUN)
+#функция выполняет токенизациию и лемматизацию массива текстов c учетом pos_tag и удаление стоп-слов
+def get_word_text(corpus):
+  corpus_new = []
+  for sentence in corpus:
+    corpus_new.append(' '.join([L.lemmatize(w, get_wordnet_pos(w)) for w in nltk.word_tokenize(sentence) if not w in stopwords.words('english')]))
+  return corpus_new
+#добавим новый столбец.
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('averaged_perceptron_tagger')
+ 
+corpus['lemma_text_no_sw'] = get_word_text(corpus['clear_text'])
+corpus.head()
+## Обучение
+features = corpus['lemma_text_no_sw']
+target = corpus['toxic']
+
+features_train, features_test, target_train, target_test = train_test_split(
+    features, target, test_size=0.25, random_state=12345, stratify = target)
+try:
+    nltk.download('stopwords')
+except:
+    pass
+#Объявляю набор стоп-слов 
+try:
+    stopwords = set(stopwords.words('english'))
+except:
+    pass
+#Объявляю TFIDF-векторизатор
+count_tf_idf = TfidfVectorizer(stop_words=stopwords) 
+#Выполняю векторизацию текстов
+features_train = count_tf_idf.fit_transform(features_train)
+features_test = count_tf_idf.transform(features_test)
+### Функцию для расчета F1:
+def F1(target, predict):
+    return (f1_score(target, predict))
+   
+#С помощию функции make_scorer создаю метрику F1
+F1 = make_scorer(F1, greater_is_better=False)
+### LogisticRegression.
+%%time
+start = time()
+#Обучаю и проверяю Логистическую регрессию на кросс-валидации, указываю параметр class_weight = 'balanced'
+regression = LogisticRegression(fit_intercept=True, 
+                                class_weight='balanced', 
+                                random_state=12345,
+                                solver='liblinear'
+                               )
+#Определяю словарь с набором параметров
+regression_parametrs = {'C': [0.1, 1, 10]}
+#Применяю GridSearchCV с кросс-валидацией
+regression_grid = GridSearchCV(regression, regression_parametrs, scoring='f1', cv=3)
+regression_grid.fit(features_train, target_train)
+
+regression.fit(features_train, target_train)
+regression_cv_score = cross_val_score(regression,features_train, target_train,scoring='f1',cv=3).mean()
+print('Среднее качество модели Логистической регрессии на кросс-валидации:', regression_cv_score)
+end = time ()
+
+fit_timellll = (end-start) / 60 #перевожу в минуты
+regression_params = regression_grid.best_params_
+regression_score = regression_grid.score(features_train, target_train)
+print(regression_params)
+print(regression_score)
+### RandomForestClassifier.
+%%time
+start = time()
+#Подбираю оптимальные гиперпараметры для Случайного леса на кросс-валидации, указываю параметр class_weight = 'balanced'
+forest = RandomForestClassifier(class_weight='balanced', n_jobs=-1 )
+#Определяю словарь с набором параметров
+forest_parametrs = { 'n_estimators': range(20, 40, 5),
+                     'max_depth': range(4, 8, 2),
+                     'min_samples_leaf': range(3,5),
+                     'min_samples_split': range(2,6,2)}
+
+#Применяю кросс-валидацией
+
+forest.fit(features_train, target_train)
+forest_cv_score = cross_val_score(forest,features_train, target_train,scoring='f1',cv=3).mean()
+print('Среднее качество модели Логистической регрессии на кросс-валидации:', regression_cv_score)
+end = time ()
+
+fit_timelll = (end-start) / 60 #перевожу в минуты
+### CatBoostClassifier.
+%%time
+start = time()
+model_cat = CatBoostClassifier()
+model_cat.fit(features_train, target_train)
+#Определяю словарь с набором параметров
+#cb_parametrs = {'learning_rate': [0.03, 0.1],
+               # 'depth': [4, 6, 10]
+              # }
+model_cv_scorer_cat = pd.Series(cross_val_score(model_cat,features_train,target_train,scoring='f1',cv=3)).mean()*(-1)
+print('Среднее качество на кросс-валидации:', model_cv_scorer_cat)
+end = time ()
+
+fit_timecc = (end-start) / 60 #перевожу в минуты
+### DummyClassifier.
+dummy = DummyClassifier(strategy="most_frequent")
+dummy.fit(features_train,target_train)
+predict_dummy=dummy.predict(features_test)
+const = (f1_score(target_test,predict_dummy))
+print('F1',const)
+predict_dummy
+### Проанализируем время обучения, время предсказания и качество моделей.
+column=['F1 модели','Скорость обучения']
+
+comparison_tabl = pd.DataFrame(index=['F1 модели','Скорость обучения'], columns=['LogisticClassifier','RandomForestClassifier','CatBoostClassifier'])
+comparison_tabl['LogisticClassifier'] = regression_cv_score,fit_timellll
+comparison_tabl['RandomForestClassifier'] = regression_cv_score,fit_timelll
+comparison_tabl['CatBoostClassifier'] = model_cv_scorer_cat,fit_timecc
+comparison_tabl.T.style.highlight_min(color='yellowgreen',subset=column).highlight_null(null_color='lightgrey').highlight_max(color='coral',subset=column)
+# Лучшая модель LogisticClassifier.
+## Тестирование
+### Проверим данные на тестовой выборке.
+
+model = LogisticRegression(fit_intercept=True,
+                                class_weight='balanced',
+                                random_state=12345,
+                                solver='liblinear',
+                                C=regression_params['C']
+                               )
+
+model.fit(features_train, target_train)
+model_predictions = model.predict(features_test)
+predictions = model.predict(features_test)
+regression_f1 = round(f1_score(target_test, predictions), 3) 
+print(regression_f1)
+## Выводы
+# На первом этапе произведена загрузка данных и их подготовка для обучения моделей. 
+# Для анализа данных и построения модели предоставлен датасет с размеченными данными, содержащий комментарии 
+# пользователей к товарам, доступным для приобретения в интернет-магазине «Викишоп».Датасет состоит из 2 столбцов
+# с данными и 159571 строк. 
+# После чего мы упростили датасет и начали обчучение моделей. 
+
+# В качестве моделей использованы LogisticRegression, RandomForestClassifier и CatBoost. 
+# Самой лучший результат показала модель LogisticRegression. 
