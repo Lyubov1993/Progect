@@ -8,4 +8,4 @@
  сылка на проект: [https://github.com/Lyubov1993/Progect/tree/main/Internet%20magazine  ](https://github.com/Lyubov1993/Best-tarif/tree/main)  
 2.	Поиск модели ,которая будет убирать плохие комметрарии  
     в работе использовала: python, pandas, numpy, statsmodels, sklearn, matplotlib  
-   сылка на проект: [https://github.com/Lyubov1993/Progect/blob/main/Internet%20magazine/Поиск%20модели%2C%20которая%20будет%20убирать%20плохие%20комментариии%20интернет%20магазине](https://github.com/Lyubov1993/Poisk-bad-commintariev/tree/main)https://github.com/Lyubov1993/Poisk-bad-commintariev/tree/main
+   сылка на проект:[ [https://github.com/Lyubov1993/Progect/blob/main/Internet%20magazine/Поиск%20модели%2C%20которая%20будет%20убирать%20плохие%20комментариии%20интернет%20магазине](https://github.com/Lyubov1993/Poisk-bad-commintariev/tree/main)https://github.com/Lyubov1993/Poisk-bad-commintariev/tree/main](https://github.com/Lyubov1993/yandex_practicum/tree/main/Delete_bad_comment)https://github.com/Lyubov1993/yandex_practicum/tree/main/Delete_bad_comment
